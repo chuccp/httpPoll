@@ -159,13 +159,14 @@ func (c *Cluster) SendMsg(userId, msg string) bool {
 	for _, machine := range c.machineList.machines {
 		waitGroup.Add(1)
 		go func() {
+			defer waitGroup.Done()
 			get, err := c.request.Get("http://" + machine.RemoteAddress + "/send?userId=" + userId + "&msg=" + msg)
 			if err == nil {
 				if strings.Contains(string(get), "ok") {
 					isSuccess = true
 				}
 			}
-			waitGroup.Done()
+
 		}()
 	}
 	waitGroup.Wait()
