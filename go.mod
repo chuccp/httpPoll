@@ -1,4 +1,4 @@
-module awesomeProject
+module httpPoll
 
 go 1.22.2
 
