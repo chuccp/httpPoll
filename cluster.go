@@ -18,6 +18,7 @@ type Machines struct {
 	lock     *sync.RWMutex
 }
 
+// 添加首台机器
 func (m *Machines) addFirstAddress(RemoteAddress string) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
@@ -29,6 +30,7 @@ func (m *Machines) addFirstAddress(RemoteAddress string) {
 	m.machines = append(m.machines, &Machine{RemoteAddress: RemoteAddress})
 }
 
+// 获取集群列表
 func (m *Machines) getMachines() []*Machine {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
@@ -37,6 +39,7 @@ func (m *Machines) getMachines() []*Machine {
 	return machines
 }
 
+// 判断是否存在机器
 func (m *Machines) hasMachines(machineId string, RemoteAddress string) bool {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
@@ -48,6 +51,7 @@ func (m *Machines) hasMachines(machineId string, RemoteAddress string) bool {
 	return false
 }
 
+// 移除机器
 func (m *Machines) removeMachine(RemoteAddress string) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
@@ -60,6 +64,7 @@ func (m *Machines) removeMachine(RemoteAddress string) {
 	m.machines = machines
 }
 
+// 添加机器
 func (m *Machines) addMachines(RemoteAddress string, MachineId string) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
@@ -84,20 +89,25 @@ type Cluster struct {
 	request         *Request
 }
 
+// 获取本机的机器信息
 func (c *Cluster) getLocalMachine() *Machine {
 	localAddress := "0.0.0.0:" + strconv.Itoa(c.LocalPort)
 	return &Machine{RemoteAddress: localAddress, MachineId: c.MachineId}
 }
+
+// 添加首台机器
 func (c *Cluster) addFirstAddress(RemoteAddress string) {
 	c.tempMachineList.addFirstAddress(RemoteAddress)
 }
 
+// 添加新的机器
 func (c *Cluster) addNewAddress(MachineId string, RemoteAddress string) {
 	if !c.machineList.hasMachines(MachineId, RemoteAddress) {
 		c.tempMachineList.addMachines(RemoteAddress, MachineId)
 	}
 }
 
+// 初始化集群信息
 func (c *Cluster) init(MachineId string, RemoteAddress string, LocalPort int) {
 	c.LocalPort = LocalPort
 	c.MachineId = MachineId
@@ -105,6 +115,7 @@ func (c *Cluster) init(MachineId string, RemoteAddress string, LocalPort int) {
 	c.addFirstAddress(RemoteAddress)
 }
 
+// 发起握手
 func (c *Cluster) initial(RemoteAddress string) (error, *Machine) {
 	machine := c.getLocalMachine()
 	data, err := json.Marshal(machine)
@@ -123,6 +134,7 @@ func (c *Cluster) initial(RemoteAddress string) (error, *Machine) {
 	return err, &_machine_
 }
 
+// 发起查询
 func (c *Cluster) queryMachine(RemoteAddress string) (error, []*Machine) {
 	localAddress := "0.0.0.0:" + strconv.Itoa(c.LocalPort)
 	machine := &Machine{MachineId: c.MachineId, RemoteAddress: localAddress}
@@ -141,6 +153,8 @@ func (c *Cluster) queryMachine(RemoteAddress string) (error, []*Machine) {
 	}
 	return err, _machines_
 }
+
+// SendMsg2 向集群机器发送消息
 func (c *Cluster) SendMsg2(userId, msg string) bool {
 	for _, machine := range c.machineList.machines {
 		get, err := c.request.Get("http://" + machine.RemoteAddress + "/send?userId=" + userId + "&msg=" + msg)
@@ -172,6 +186,8 @@ func (c *Cluster) SendMsg(userId, msg string) bool {
 	waitGroup.Wait()
 	return isSuccess
 }
+
+// 将机器节点从临时列表。移到正式列表
 func (c *Cluster) switchTempToList(machine *Machine) {
 	c.tempMachineList.removeMachine(machine.RemoteAddress)
 	c.machineList.addMachines(machine.RemoteAddress, machine.MachineId)
@@ -212,6 +228,8 @@ func (c *Cluster) queryMachines() {
 		}
 	}
 }
+
+// 循环执行握手和查询任务
 func (c *Cluster) loop() {
 	for {
 		time.Sleep(time.Second)

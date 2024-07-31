@@ -125,6 +125,7 @@ func (s *Store) AddUser(user *User) *Users {
 	}
 }
 
+// 轮询检查离线用户
 func (s *Store) loopCheck() {
 	for {
 		time.Sleep(time.Second)

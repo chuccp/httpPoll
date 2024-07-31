@@ -15,6 +15,7 @@ var userStore = NewStore()
 
 var cluster = NewCluster()
 
+// 信息接收接口
 func receive(resp http.ResponseWriter, req *http.Request) {
 	userId := req.FormValue("userId")
 	user := NewUser(userId, req.RemoteAddr)
@@ -30,6 +31,8 @@ func receive(resp http.ResponseWriter, req *http.Request) {
 	}
 
 }
+
+// 信息发送接口
 func send(resp http.ResponseWriter, req *http.Request) {
 	msg := req.FormValue("msg")
 	userId := req.FormValue("userId")
@@ -48,6 +51,7 @@ func send(resp http.ResponseWriter, req *http.Request) {
 
 }
 
+// 集群握手接口
 func initial(w http.ResponseWriter, re *http.Request) {
 	machine, err := getRemoteMachine(re)
 	if err != nil {
@@ -89,6 +93,7 @@ func getRemoteMachine(re *http.Request) (*Machine, error) {
 	}
 }
 
+// 集群查询接口
 func queryMachine(w http.ResponseWriter, re *http.Request) {
 	machine, err := getRemoteMachine(re)
 	if err != nil {
@@ -104,6 +109,8 @@ func queryMachine(w http.ResponseWriter, re *http.Request) {
 		}
 	}
 }
+
+// 查询接口，验证是否已经有所有集群机器
 func queryMachine2(w http.ResponseWriter, re *http.Request) {
 	machines := cluster.machineList.getMachines()
 	marshal, err := json.Marshal(machines)
@@ -114,6 +121,7 @@ func queryMachine2(w http.ResponseWriter, re *http.Request) {
 	}
 }
 func main() {
+	//读取配置文件
 	cfg, err := ini.Load("config.ini")
 	if err != nil {
 		log.Panic(err)
@@ -123,20 +131,23 @@ func main() {
 	if err != nil {
 		log.Panic(err)
 	}
-	remoteAddressKey := cfg.Section("cluster").Key("remote-address")
+	remoteAddressKey := cfg.Section("cluster").Key("remote-address") //首台要连接的机器
 	remoteAddress := remoteAddressKey.Value()
-	machineIdKey := cfg.Section("cluster").Key("machineId")
+	machineIdKey := cfg.Section("cluster").Key("machineId") //当前机器的唯一ID，每一台机器必须不一样
 	machineId := machineIdKey.Value()
 
-	go userStore.loopCheck()
+	go userStore.loopCheck() //用户离线检查
+
 	http.HandleFunc("/receive", receive)
 	http.HandleFunc("/send", send)
 
 	cluster.init(machineId, remoteAddress, port)
-	go cluster.run()
-	http.HandleFunc("/_cluster/initial", initial)
-	http.HandleFunc("/_cluster/queryMachine", queryMachine)
-	http.HandleFunc("/queryMachine", queryMachine2)
+
+	go cluster.run() //启动集群
+
+	http.HandleFunc("/_cluster/initial", initial)           //集群握手接口
+	http.HandleFunc("/_cluster/queryMachine", queryMachine) //集群机器列表查询接口
+	http.HandleFunc("/queryMachine", queryMachine2)         //查询机器列表接口
 	err = http.ListenAndServe(":"+strconv.Itoa(port), nil)
 	if err != nil {
 		log.Panic(err)

@@ -17,6 +17,7 @@ func NewQueue() *Queue {
 	return &Queue{list: list.New(), lock: new(sync.RWMutex), flag: make(chan bool)}
 }
 
+// Offer 写入
 func (queue *Queue) Offer(value interface{}) {
 	queue.lock.Lock()
 	queue.list.PushFront(value)
@@ -28,6 +29,8 @@ func (queue *Queue) Offer(value interface{}) {
 		queue.lock.Unlock()
 	}
 }
+
+// DequeueTimer 定时返回
 func (queue *Queue) DequeueTimer(timer *time.Timer) (value interface{}, hasValue bool) {
 	for {
 		queue.lock.Lock()
